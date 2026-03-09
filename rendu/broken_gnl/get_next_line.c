@@ -25,22 +25,28 @@ char *ft_strchr(char *s, int c)
 
 void *ft_memcpy(void *dest, const void *src, size_t n)
 {
-	while(--n > 0)
-		((char *)dest)[n - 1] = ((char *)src)[n - 1];
+	size_t i = 0;
+
+	while(i < n)
+	{
+		((char *)dest)[i] = ((char *)src)[i];
+		
+		i++;
+	}
 	return dest;
 }
 
 void *ft_memmove(void *dest, const void *src, size_t n)
 {
-	if (dest > src)
-		return ft_memmove(dest, src, n);
+	if (dest < src)
+		return ft_memcpy(dest, src, n);
 	else if (dest == src)
 		return dest;
-	size_t i = ft_strlen((char *)src) - 1;
-	while (i >= 0)
+	size_t i = 0;
+	while (i < n)
 	{
-		((char *)dest)[i] = ((char *)src)[i];
-		i--;
+		((char *)dest)[n - i - 1] = ((char *)src)[n - i - 1];
+		i++;
 	}
 	return dest;
 }
@@ -54,7 +60,8 @@ int str_append_mem(char **s1, char *s2, size_t size2)
 	ft_memcpy(tmp, *s1, size1);
 	ft_memcpy(tmp + size1, s2, size2);
 	tmp[size1 + size2] = '\0';
-	free(*s1);
+	if (*s1)
+		free(*s1);
 	*s1 = tmp;
 	return 1; 
 }
@@ -68,20 +75,42 @@ char *get_next_line(int fd)
 {
 	static char b[BUFFER_SIZE + 1] = "";
 	char *ret = NULL;
-	char *tmp = ft_strchr(b, '\n');
-	while(!tmp)
-	{
-		if (!str_append_str(&ret, b))
-			return (NULL);
-		int read_ret = read(fd, b, BUFFER_SIZE);
-		if (read_ret == -1)
-			return (NULL);
-		b[read_ret] = 0;
-	}
-	if (!str_append_mem(&ret, b, tmp - b + 1))
-	{
-		free(ret);
+	char *tmp;
+	int readret;
+	
+	if (fd < 0 || BUFFER_SIZE <= 0)
 		return NULL;
+	
+	while (1)
+	{
+		tmp = ft_strchr(b, '\n');
+
+		if (tmp)
+		{
+			if (!str_append_mem(&ret, b, tmp - b + 1))
+			{
+				if (ret)
+					free(ret);
+				return NULL;
+			}
+			ft_memmove(b, tmp + 1, ft_strlen(tmp + 1) + 1);
+			return ret;
+		}
+		if (!str_append_str(&ret, b))
+		{
+			if (ret)
+				free(ret);
+			return NULL;		
+		}
+		readret = read(fd, b, BUFFER_SIZE);
+		if (readret <= 0)
+		{
+			b[0] = '\0';
+			if (ret && *ret)
+				return ret;
+			free(ret);
+			return NULL;
+		}
+		b[readret] = '\0';
 	}
-	return ret;
 }
